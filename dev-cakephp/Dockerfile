@@ -7,7 +7,10 @@
 # 
 #   Access your Nginx server at http://localhost:8080.
 #
-#   If you develop frequently, consider (apt-cacher-ng) and composer's cache
+#   If you develop frequently, consider package caching proxies such as 
+#       (apt-cacher-ng) and (velocita-proxy)
+#       https://www.tecmint.com/apt-cache-server-in-ubuntu/
+#       https://github.com/isaaceindhoven/velocita-proxy
 
 FROM ubuntu/nginx:1.18-22.04_beta
     #
@@ -78,6 +81,21 @@ RUN composer create-project --no-interaction --prefer-dist \
 
     chmod -R u+rwX,go+rX,go-w /a_skeleton_app && \
     chown -R www-data:www-data /a_skeleton_app/tmp /a_skeleton_app/logs
+
+#RUN rm /bin/sh && \
+#    ln -s /bin/bash /bin/sh
+
+RUN sed -zi \
+'s/\
+\(.*For MariaDB.*\)\
+    # group 1
+\(\/\/\)\
+    # group 2
+\('\''encoding'\''.*your MySQL.*\)\
+    # group 3
+/\1\3/g' \
+    # exclude group 2
+/a_skeleton_app/config/app.php 
 
 RUN mkdir /run/php && \
     echo ' \n\
