@@ -7,10 +7,12 @@
 # 
 #   Access your Nginx server at http://localhost:8080.
 #
-#   If you develop frequently, consider package caching proxies such as 
+#   2022-05-03 : poor success, so not included : 
+#       If you develop frequently, consider package caching proxies such as 
 #       (apt-cacher-ng) and (velocita-proxy)
-#       https://www.tecmint.com/apt-cache-server-in-ubuntu/
-#       https://github.com/isaaceindhoven/velocita-proxy
+#
+#       Possibly less complex, with higher probability of success :
+#       or (apt-mirror) and (https://github.com/Webysther/packagist-mirror)
 
 FROM ubuntu/nginx:1.18-22.04_beta
     #
@@ -18,47 +20,68 @@ FROM ubuntu/nginx:1.18-22.04_beta
     #   Long-term support by Canonical. Note, there is a 20.04 LTS version, so
     #   we are taking a bit of a gamble with 22.04
 
-# RUN cp /var/www/html/index.nginx-debian.html /var/www/html/index.html
-# ... also remove package apache2?
+# Install (generalist packages, supporting installation, not development) :
 
-RUN apt autoremove && \
-        # removes dependencies whose dependents were already removed
-    apt update -y && \
+RUN apt update -y && \
     apt install -y \
         wget \
-        vim \
-        git \
         software-properties-common && \
+    apt autoremove && \
     apt clean && \
-        # removes all installation files
     rm -rf /var/lib/apt/lists/*
 
+    #   apt autoremove && \
+    #       removes dependencies whose dependents were already removed
+    #
+    #   apt clean && \
+    #       removes all installation files
+
+
+#   Install (php) and (mariadb) :
+#
 #   https://serverfault.com/questions/1058374/is-the-ppaondrej-php-repository-safe
 
 RUN add-apt-repository -y ppa:ondrej/php && \
     add-apt-repository -y ppa:ondrej/nginx-mainline && \
-
-    #   ... if you are manually stepping through, consider here :
-    #   apt-cache showpkg php OR mariadb-server ETC 
-
     apt update -y && \
     apt install -y \
-        php8.1=8.1.5-1+ubuntu22.04.1+deb.sury.org+1.1 \
+        php8.1-fpm=8.1.5-1+ubuntu22.04.1+deb.sury.org+1.1 \ 
+        zip \
+        unzip \
+        php-zip \
         php-intl \ 
         php-xml \ 
         php-mbstring \ 
-            # cakephp needs this
         php-sqlite3 \ 
-            # cakephp's debug_kit needs this
-        php-fpm \ 
-            # nginx needs this
         php-mysql \ 
-            # nginx needs this
         mariadb-server=1:10.6.7-2ubuntu1 \
         mariadb-client=1:10.6.7-2ubuntu1 && \
+    apt autoremove && \
     apt clean && \
-        # removes all installation files
     rm -rf /var/lib/apt/lists/*
+
+    #   You can use (apt-cache showpkg PACKAGENAME) to see detailed versions;
+    #
+    #        php8.1-fpm=8.1.5-1+ubuntu22.04.1+deb.sury.org+1.1 \ 
+    #            # nginx uses this; if you install
+    #            #   php8.1=8.1.5-1+ubuntu22.04.1+deb.sury.org+1.1
+    #            #   it installs (apache2) as well
+    #        zip \
+    #        unzip \
+    #        php-zip \
+    #            # composer may benefit from this
+    #        php-intl \ 
+    #        php-xml \ 
+    #        php-mbstring \ 
+    #            # cakephp needs this
+    #        php-sqlite3 \ 
+    #            # cakephp's debug_kit needs this
+    #        php-mysql \ 
+    #            # nginx needs this
+    #        mariadb-server=1:10.6.7-2ubuntu1 \
+    #        mariadb-client=1:10.6.7-2ubuntu1 && \
+
+# Install (composer) :
 
 RUN php -r "copy('https://getcomposer.org/installer', \
         'composer-setup.php');" && \
@@ -70,32 +93,24 @@ RUN php -r "copy('https://getcomposer.org/installer', \
     php composer-setup.php && \
     php -r "unlink('composer-setup.php');" && \
     mv composer.phar /usr/local/bin/composer && \
-    
     composer clear-cache && \
     rm -rf ~/.composer/cache/*
+
+# Create (cakephp app "a_skeleton_app") :
 
 RUN composer create-project --no-interaction --prefer-dist \
         cakephp/app=4.3.2 a_skeleton_app && \
     composer clear-cache && \
     rm -rf ~/.composer/cache/* && \
-
     chmod -R u+rwX,go+rX,go-w /a_skeleton_app && \
     chown -R www-data:www-data /a_skeleton_app/tmp /a_skeleton_app/logs
 
-#RUN rm /bin/sh && \
-#    ln -s /bin/bash /bin/sh
+# Matching (the created cakephp app) create a directory, 
+#   which is used in the subsequently set nginx configuration :
 
-RUN sed -zi \
-'s/\
-\(.*For MariaDB.*\)\
-    # group 1
-\(\/\/\)\
-    # group 2
-\('\''encoding'\''.*your MySQL.*\)\
-    # group 3
-/\1\3/g' \
-    # exclude group 2
-/a_skeleton_app/config/app.php 
+#   TODO :
+#       https://www.dereuromark.de/2021/05/27/nginx-setup-for-your-cakephp-apps/
+#       UPGRADE DOCKERFILE TO PRODUCTION CONFIGURATION NEXT
 
 RUN mkdir /run/php && \
     echo ' \n\
@@ -121,41 +136,39 @@ RUN mkdir /run/php && \
              } \n\
          \n\
         } \n\
-        ' > /etc/nginx/sites-available/default
+        ' > /etc/nginx/sites-available/default 
 
+# Matching (the created cakephp app) create MariaDB 
+#   user, password, database, and permissions :
 
-# https://www.dereuromark.de/2021/05/27/nginx-setup-for-your-cakephp-apps/
-#   UPGRADE DOCKERFILE TO PRODUCTION CONFIGURATION NEXT
-
-# /etc/nginx/sites-available/default
-#
+RUN /etc/init.d/mariadb start && \
+    mysqladmin -u root password secret && \
+    mysql --user=root --password=secret \
+        --execute='\
+CREATE USER my_app@localhost IDENTIFIED BY "secret";\
+CREATE DATABASE my_app;\
+GRANT ALL PRIVILEGES ON my_app.* TO my_app@localhost;\
+'
 
 ENTRYPOINT  nginx && \
+            /etc/init.d/mariadb start && \
             php-fpm8.1 -F 
                 # foreground, to preven docker from terminating the container 
 
 # HARDENING
  
-# https://serverfault.com/questions/888653/correct-web-user-for-php-fpm-under-nginx
+    # https://serverfault.com/questions/888653/correct-web-user-for-php-fpm-under-nginx
+    
+    # https://www.vultr.com/docs/installing-configuring-and-securing-php-8-1-on-ubuntu-20-04/
+    
+    # https://howtogetonline.com/how-to-harden-your-php-for-better-security.php
+    
+    # https://php.watch/articles/composer-security-hardening
+    
+    # https://computingforgeeks.com/how-to-install-mariadb-on-ubuntu-focal-fossa/
+    # https://www.tecmint.com/mysql-mariadb-security-best-practices-for-linux/
 
- # https://www.vultr.com/docs/installing-configuring-and-securing-php-8-1-on-ubuntu-20-04/
+# TODO
 
- # https://howtogetonline.com/how-to-harden-your-php-for-better-security.php
-
- # https://php.watch/articles/composer-security-hardening
-
- # https://computingforgeeks.com/how-to-install-mariadb-on-ubuntu-focal-fossa/
- # https://www.tecmint.com/mysql-mariadb-security-best-practices-for-linux/
-
-
-#MYSQL_ROOT_PASSWORD=password
-#
-#MYSQL_DATABASE=my_app
-#
-#MYSQL_USER=my_user
-#
-#MYSQL_PASSWORD=password
-
-
-# for future upgrades to docker-composer :
-# https://www.cakedc.com/rochamarcelo/2020/07/20/a-quick-cakephp-local-environment-with-docker
+    # for future upgrades to docker-composer :
+    # https://www.cakedc.com/rochamarcelo/2020/07/20/a-quick-cakephp-local-environment-with-docker
