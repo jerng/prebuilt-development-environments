@@ -153,22 +153,23 @@ GRANT ALL PRIVILEGES ON my_app.* TO my_app@localhost;\
 ENTRYPOINT  nginx && \
             /etc/init.d/mariadb start && \
             php-fpm8.1 -F 
-                # foreground, to preven docker from terminating the container 
-
-# HARDENING
- 
-    # https://serverfault.com/questions/888653/correct-web-user-for-php-fpm-under-nginx
-    
-    # https://www.vultr.com/docs/installing-configuring-and-securing-php-8-1-on-ubuntu-20-04/
-    
-    # https://howtogetonline.com/how-to-harden-your-php-for-better-security.php
-    
-    # https://php.watch/articles/composer-security-hardening
-    
-    # https://computingforgeeks.com/how-to-install-mariadb-on-ubuntu-focal-fossa/
-    # https://www.tecmint.com/mysql-mariadb-security-best-practices-for-linux/
+                # foreground, to prevent docker from terminating the container 
 
 # TODO
 
     # for future upgrades to docker-composer :
     # https://www.cakedc.com/rochamarcelo/2020/07/20/a-quick-cakephp-local-environment-with-docker
+
+    # HARDENING
+ 
+        # https://serverfault.com/questions/888653/correct-web-user-for-php-fpm-under-nginx
+        
+        # https://www.vultr.com/docs/installing-configuring-and-securing-php-8-1-on-ubuntu-20-04/
+        
+        # https://howtogetonline.com/how-to-harden-your-php-for-better-security.php
+        
+        # https://php.watch/articles/composer-security-hardening
+        
+        # https://computingforgeeks.com/how-to-install-mariadb-on-ubuntu-focal-fossa/
+        # https://www.tecmint.com/mysql-mariadb-security-best-practices-for-linux/
+
