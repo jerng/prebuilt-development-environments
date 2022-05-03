@@ -14,11 +14,12 @@
 #       Possibly less complex, with higher probability of success :
 #       or (apt-mirror) and (https://github.com/Webysther/packagist-mirror)
 
-FROM ubuntu/nginx:1.18-22.04_beta
+FROM ubuntu/nginx:1.18-20.04_beta
     #
     #   https://hub.docker.com/r/ubuntu/nginx
-    #   Long-term support by Canonical. Note, there is a 20.04 LTS version, so
-    #   we are taking a bit of a gamble with 22.04
+    #   Long-term support by Canonical. Note, there is a 22.04 LTS version, 
+    #   but on cloud image builders, their kernels are not compatible with
+    #   MariaDB-10.6.7 so we're going with the older 20.04 for now
 
 # Install (generalist packages, supporting installation, not development) :
 
@@ -45,7 +46,7 @@ RUN add-apt-repository -y ppa:ondrej/php && \
     add-apt-repository -y ppa:ondrej/nginx-mainline && \
     apt update -y && \
     apt install -y \
-        php8.1-fpm=8.1.5-1+ubuntu22.04.1+deb.sury.org+1.1 \ 
+        php8.1-fpm=8.1.5-1+ubuntu20.04.1+deb.sury.org+1 \ 
         zip \
         unzip \
         php-zip \
@@ -54,8 +55,8 @@ RUN add-apt-repository -y ppa:ondrej/php && \
         php-mbstring \ 
         php-sqlite3 \ 
         php-mysql \ 
-        mariadb-server=1:10.6.7-2ubuntu1 \
-        mariadb-client=1:10.6.7-2ubuntu1 && \
+        mariadb-server=1:10.3.34-0ubuntu0.20.04.1 \
+        mariadb-client=1:10.3.34-0ubuntu0.20.04.1 && \
     apt autoremove && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
@@ -141,10 +142,10 @@ RUN mkdir /run/php && \
 # Matching (the created cakephp app) create MariaDB 
 #   user, password, database, and permissions :
 
-#RUN /etc/init.d/mariadb start && \
-RUN mkdir /run/mysqld && \
-    ( /usr/sbin/mysqld --user=root & ) && \
-    sleep 3 && \
+#RUN mkdir /var/run/mysqld && \
+#    ( /usr/sbin/mysqld --user=root & ) && \
+#    sleep 3 && \
+RUN /etc/init.d/mysql start && \
     mysqladmin -u root password secret && \
     mysql --user=root --password=secret \
         --execute='\
@@ -154,7 +155,7 @@ GRANT ALL PRIVILEGES ON my_app.* TO my_app@localhost;\
 '
 
 ENTRYPOINT  nginx && \
-            /etc/init.d/mariadb start && \
+            /etc/init.d/mysql start && \
             php-fpm8.1 -F 
                 # foreground, to prevent docker from terminating the container 
 
