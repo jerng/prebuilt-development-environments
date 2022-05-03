@@ -155,6 +155,8 @@ ENTRYPOINT  nginx && \
             php-fpm8.1 -F 
                 # foreground, to prevent docker from terminating the container 
 
+EXPOSE 80/tcp
+
 # TODO
 
     # for future upgrades to docker-composer :
