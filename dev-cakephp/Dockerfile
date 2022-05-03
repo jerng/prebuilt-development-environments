@@ -141,7 +141,10 @@ RUN mkdir /run/php && \
 # Matching (the created cakephp app) create MariaDB 
 #   user, password, database, and permissions :
 
-RUN /etc/init.d/mariadb start && \
+#RUN /etc/init.d/mariadb start && \
+RUN mkdir /run/mysqld && \
+    ( /usr/sbin/mysqld --user=root & ) && \
+    sleep 3 && \
     mysqladmin -u root password secret && \
     mysql --user=root --password=secret \
         --execute='\
