@@ -163,6 +163,11 @@ EXPOSE 80/tcp
 
 # TODO
 
+    # 2022-05-04 AWS CodeBuild -> ECR -> Fargate gets this error on the CakePHP hello world page
+        # probably need to ssh in and poke around to see if sqlite3 is working, pdo-sqlite, etc.
+        #
+        #   DebugKit is not able to connect to the database. The datasource configuration "debug_kit" was not found.
+
     # for future upgrades to docker-composer :
     # https://www.cakedc.com/rochamarcelo/2020/07/20/a-quick-cakephp-local-environment-with-docker
 
