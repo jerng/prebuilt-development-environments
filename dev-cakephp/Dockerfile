@@ -38,7 +38,7 @@ RUN apt update -y && \
     #       removes all installation files
 
 
-#   Install (php) and (mariadb) :
+#   Install (php) and (sqlite) if not already installed :
 #
 #   https://serverfault.com/questions/1058374/is-the-ppaondrej-php-repository-safe
 
@@ -53,10 +53,8 @@ RUN add-apt-repository -y ppa:ondrej/php && \
         php-intl \ 
         php-xml \ 
         php-mbstring \ 
-        php-sqlite3 \ 
-        php-mysql \ 
-        mariadb-server=1:10.3.34-0ubuntu0.20.04.1 \
-        mariadb-client=1:10.3.34-0ubuntu0.20.04.1 && \
+        php-sqlite3 \
+        sqlite3 && \ 
     apt autoremove && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
@@ -74,13 +72,10 @@ RUN add-apt-repository -y ppa:ondrej/php && \
     #        php-intl \ 
     #        php-xml \ 
     #        php-mbstring \ 
+    #        sqlite3 \ 
     #            # cakephp needs this
     #        php-sqlite3 \ 
     #            # cakephp's debug_kit needs this
-    #        php-mysql \ 
-    #            # nginx needs this
-    #        mariadb-server=1:10.6.7-2ubuntu1 \
-    #        mariadb-client=1:10.6.7-2ubuntu1 && \
 
 # Install (composer) :
 
@@ -139,23 +134,15 @@ RUN mkdir /run/php && \
         } \n\
         ' > /etc/nginx/sites-available/default 
 
-# Matching (the created cakephp app) create MariaDB 
-#   user, password, database, and permissions :
+# Matching (the created cakephp app) create Sqlite configuration :
 
-#RUN mkdir /var/run/mysqld && \
-#    ( /usr/sbin/mysqld --user=root & ) && \
-#    sleep 3 && \
-RUN /etc/init.d/mysql start && \
-    mysqladmin -u root password secret && \
-    mysql --user=root --password=secret \
-        --execute='\
-CREATE USER my_app@localhost IDENTIFIED BY "secret";\
-CREATE DATABASE my_app;\
-GRANT ALL PRIVILEGES ON my_app.* TO my_app@localhost;\
-'
+RUN touch /a_skeleton_app/resources/my_app.db && \
+    sed -ie 's/Mysql::class/Sqlite::class/g' /a_skeleton_app/config/app.php && \
+    sed -ie \
+        "s/'database' => 'my_app'/'database' => ROOT . DS . 'resources' . DS . 'my_app.db'/g" \
+        /a_skeleton_app/config/app_local.php
 
 ENTRYPOINT  nginx && \
-            /etc/init.d/mysql start && \
             php-fpm8.1 -F 
                 # foreground, to prevent docker from terminating the container 
 
