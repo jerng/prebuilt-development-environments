@@ -109,30 +109,53 @@ RUN composer create-project --no-interaction --prefer-dist \
 #       UPGRADE DOCKERFILE TO PRODUCTION CONFIGURATION NEXT
 
 RUN mkdir /run/php && \
-    echo ' \n\
-        server { \n\
-         \n\
-             listen 80;  \n\
-             listen [::]:80; \n\
-             root /a_skeleton_app/webroot; \n\
-             index index.php; \n\
-             access_log /var/log/nginx/access.log; \n\
-             error_log /var/log/nginx/error.log; \n\
-         \n\
-             location / { \n\
-                     try_files $uri $uri/ /index.php?$args; \n\
-             } \n\
-         \n\
-              location ~ \.php$ { \n\
-                     include snippets/fastcgi-php.conf; \n\
-                     include fastcgi_params; \n\
-                     proxy_intercept_errors on; \n\
-                     fastcgi_pass unix:/run/php/php8.1-fpm.sock; \n\
-                     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \n\
-             } \n\
-         \n\
-        } \n\
-        ' > /etc/nginx/sites-available/default 
+    echo '\
+server { \n\
+\n\
+        listen 80;  \n\
+        listen [::]:80; \n\
+        root /a_skeleton_app/webroot; \n\
+        index index.php; \n\
+\n\
+        access_log /var/log/nginx/access.log; \n\
+        error_log /var/log/nginx/error.log debug; \n\
+        rewrite_log on; \n\
+\n\
+        location = /phpliteadmin {\n\
+\n\
+                include fastcgi_params; \n\
+                proxy_intercept_errors on; \n\
+                fastcgi_pass unix:/run/php/php8.1-fpm.sock; \n\
+                fastcgi_param SCRIPT_FILENAME /usr/share/phpliteadmin/phpliteadmin.php; \n\
+\n\
+                root /usr/share/phpliteadmin;\n\
+                index phpliteadmin.php;\n\
+                fastcgi_index phpliteadmin.php;\n\
+        }   \n\
+\n\
+        location / { \n\
+                try_files $uri $uri/ /index.php?$args; \n\
+        }   \n\
+\n\
+        location ~ \.php$ { \n\
+                include snippets/fastcgi-php.conf; \n\
+                include fastcgi_params; \n\
+                proxy_intercept_errors on; \n\
+                fastcgi_pass unix:/run/php/php8.1-fpm.sock; \n\
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \n\
+        }   \n\
+\n\
+}\n\
+'\
+        > /etc/nginx/sites-available/default 
+
+# install phpliteadmin :
+
+RUN wget http://www.phpliteadmin.org/phpliteadmin-dev.zip && \
+    unzip \
+        -j phpliteadmin-dev.zip phpliteadmin.php \
+        -d /usr/share/phpliteadmin/ && \
+    rm /phpliteadmin-dev.zip
 
 # Matching (the created cakephp app) create Sqlite configuration :
 
